@@ -107,9 +107,17 @@ if(data.box_id == 1) {
 io.on('rasp_photo', function(data){
         //turn on ledin before taking photo
         ledin1.writeSync(1);
+        ledin2.writeSync(1);
+        ledin3.writeSync(1);
+        ledin4.writeSync(1);
+        
         //execute raspistill
 	exec_photo(cmd_photo, function(error, stdout, stderr){
-	 ledin.writeSync(0);
+	 ledin1.writeSync(0);
+         ledin2.writeSync(0);
+         ledin3.writeSync(0);
+         ledin4.writeSync(0);
+
   	 base64.encode(photo_path,{local:true},function(err,x){
          myObj.image = x;
 	 myObj.user_id = data.user_id;
@@ -130,7 +138,7 @@ var dataread = setInterval(function(){
    send_data['ledin'] = ledin1.readSync();
    send_data['ledout'] = ledout.readSync();
    send_data['lock'] = locker.readSync();
-   send_data['photosen'] = (ldr.readSync()^1);
+   send_data['photosen'] = ldr.readSync();
 
    io.emit('upload', send_data); 
 
