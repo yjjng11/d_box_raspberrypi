@@ -9,8 +9,8 @@ var base64 = require('node-base64-image');
 var Gpio = require('onoff').Gpio,
     ledin1 = new Gpio(4, 'out'),
     ledin2 = new Gpio(26, 'out'),
-   // ledin[2] = new Gpio(, 'out'),
-    //ledin[3] = new Gpio(, 'out'),
+    ledin3 = new Gpio(19, 'out'),
+    ledin4 = new Gpio(13, 'out'),
     ledout = new Gpio(17,'out'),
     locker = new Gpio(18, 'out'),
     micros = new Gpio(22, 'in','both'),
@@ -58,11 +58,15 @@ var setbox = function(){
 	if(value == 1){
 	  ledin1.writeSync(1);
           ledin2.writeSync(1);
+          ledin3.writeSync(1);
+          ledin4.writeSync(1);
 	  }
         //if closed
 	else{
 	  ledin1.writeSync(0);
           ledin2.writeSync(0);
+          ledin3.writeSync(0);
+          ledin4.writeSync(0);
         }
    });
 }
