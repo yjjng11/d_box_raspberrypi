@@ -2,12 +2,15 @@ var io = require('socket.io-client')('http://192.168.0.15:3000');
 
 var exec_photo = require('child_process').exec;
 var photo_path = __dirname+"/Pictures/"+Date.now()+'.jpg'
-var cmd_photo = 'raspistill -o '+photo_path;
+var cmd_photo = 'raspistill -o '+photo_path+' -t 1000';
 var fs = require('fs');
 var base64 = require('node-base64-image');
 
 var Gpio = require('onoff').Gpio,
-    ledin = new Gpio(4, 'out'),
+    ledin1 = new Gpio(4, 'out'),
+    ledin2 = new Gpio(26, 'out'),
+   // ledin[2] = new Gpio(, 'out'),
+    //ledin[3] = new Gpio(, 'out'),
     ledout = new Gpio(17,'out'),
     locker = new Gpio(18, 'out'),
     micros = new Gpio(22, 'in','both'),
@@ -15,6 +18,8 @@ var Gpio = require('onoff').Gpio,
     ldr = new Gpio(21, 'in');
 
 var myObj = {};
+
+var using = 0;
 
 var lockerclose = function(){
 	locker.write(0, function(err) {
@@ -42,13 +47,38 @@ var lockeropen = function(){
 	});
 }
 
+//box set up
+var setbox = function(){
+   laser.writeSync(0);
+   micros.watch(function(err,value) {
+	if(err){
+		throw err;
+	}
+	//if opened
+	if(value == 1){
+	  ledin1.writeSync(1);
+          ledin2.writeSync(1);
+	  }
+        //if closed
+	else{
+	  ledin1.writeSync(0);
+          ledin2.writeSync(0);
+        }
+   });
+}
+//setbox();
 
+//connect to server
 io.on('connect',function(){
    console.log("connect");
    
 });
 
+//lock 
 io.on('rasp_lock', function(data){
+
+if(data.box_id == 1) {
+
 	var send_data = {};
 	send_data.id = data.id;
   console.log(data);
@@ -64,13 +94,15 @@ io.on('rasp_lock', function(data){
 	send_data.lock = 0;
   }
   io.emit('rasp_response', send_data);
+
+}
   
 });
 
 //take photo function
 io.on('rasp_photo', function(data){
         //turn on ledin before taking photo
-        ledin.writeSync(1);
+        ledin1.writeSync(1);
         //execute raspistill
 	exec_photo(cmd_photo, function(error, stdout, stderr){
 	 ledin.writeSync(0);
@@ -78,7 +110,7 @@ io.on('rasp_photo', function(data){
          myObj.image = x;
 	 myObj.user_id = data.user_id;
 	 myObj.box_id = data.box_id;
-        // console.log(myObj);
+         console.log(myObj);
         console.log('receive server message');
 	io.emit('photo_res',myObj);           
    });
@@ -86,17 +118,18 @@ io.on('rasp_photo', function(data){
 	
 });
 
-/*
-io.on('upload', function(data){
+
+var dataread = setInterval(function(){
   var send_data = {};
-  if(data.shot == 1){
-
+   send_data.box_id = 1;
    send_data['micros'] = micros.readSync();
+   send_data['ledin'] = ledin1.readSync();
    send_data['ledout'] = ledout.readSync();
-   send_data['ledin'] = ledin.readSync();
-   send_data['locker'] = locker.readSync();
-   send_data['photosen'] = ldr.readSync();
+   send_data['lock'] = locker.readSync();
+   send_data['photosen'] = (ldr.readSync()^1);
 
-   io.emit('sensor', send_data); }//if
+   io.emit('upload', send_data); 
 
-}); */
+	
+ }, 3000); 
+
