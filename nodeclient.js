@@ -2,9 +2,10 @@ var io = require('socket.io-client')('http://192.168.0.15:3000');
 
 var exec_photo = require('child_process').exec;
 var photo_path = __dirname+"/Pictures/"+Date.now()+'.jpg'
-var cmd_photo = 'raspistill -o '+photo_path+' -t 1000';
+var cmd_photo = 'raspistill -o '+photo_path+' -t 3000 -ISO 800 -br 80 -co 100';
 var fs = require('fs');
 var base64 = require('node-base64-image');
+var check_attack = 0;
 
 var Gpio = require('onoff').Gpio,
     ledin1 = new Gpio(4, 'out'),
@@ -20,7 +21,6 @@ var Gpio = require('onoff').Gpio,
 var myObj = {};
 
 var using = 0;
-
 var lockerclose = function(){
 	locker.write(0, function(err) {
 		if(err){
@@ -32,10 +32,12 @@ var lockerclose = function(){
 			throw err;
 		}
 	});
+
+	check_attack = 0;
 }
 
 var lockeropen = function(){
-  locker.write(1, function(err) {
+  	locker.write(1, function(err) {
 		if(err){
 			throw err;
 		}
@@ -45,8 +47,9 @@ var lockeropen = function(){
 			throw err;
 		}
 	});
+	
+	check_attack = 1;
 }
-
 //box set up
 var setbox = function(){
    laser.writeSync(0);
@@ -55,7 +58,7 @@ var setbox = function(){
 		throw err;
 	}
 	//if opened
-	if(value == 1){
+	if(value == 0){
 	  ledin1.writeSync(1);
           ledin2.writeSync(1);
           ledin3.writeSync(1);
@@ -70,7 +73,7 @@ var setbox = function(){
         }
    });
 }
-//setbox();
+setbox();
 
 //connect to server
 io.on('connect',function(){
@@ -101,6 +104,22 @@ if(data.box_id == 1) {
 
 }
   
+});
+
+io.on('led_out_on', function(box_id){
+
+	if(box_id == 1){
+		ledout.writeSync(1);
+		console.log('led_out_on');
+	}
+});
+
+io.on('led_out_off', function(box_id){
+
+	if(box_id == 1){
+		ledout.writeSync(0);
+		console.log('led_out_off');
+	}
 });
 
 //take photo function
@@ -134,13 +153,17 @@ io.on('rasp_photo', function(data){
 var dataread = setInterval(function(){
   var send_data = {};
    send_data.box_id = 1;
-   send_data['micros'] = micros.readSync();
+   send_data['micros'] = (micros.readSync())^1;
    send_data['ledin'] = ledin1.readSync();
    send_data['ledout'] = ledout.readSync();
    send_data['lock'] = locker.readSync();
    send_data['photosen'] = ldr.readSync();
 
-   io.emit('upload', send_data); 
+   if(check_attack == 0 && send_data.micros == 1)
+	io.emit('upload', 'attack'); 
+   else
+	io.emit('upload', send_data);
+
 
 	
  }, 3000); 
